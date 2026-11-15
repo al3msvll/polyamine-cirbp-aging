@@ -1,0 +1,25 @@
+{
+  "gtex_gct": "data/gene_tpm_v11_whole_blood.gct.gz",
+  "gtex_phenotypes": "data/GTEx_Analysis_v11_Annotations_SubjectPhenotypesDS.txt",
+  "lm22": "data/LM22.txt",
+  "gse233321": {
+    "h5ad": "data/GSE233321_all_PBMCs.h5ad",
+    "chunk_cells": 20000,
+    "obs": {
+      "donor": "sample_id",
+      "age": "Age_in_yrs",
+      "sex": null,
+      "cell_type": "LS_L2"
+    }
+  },
+  "onek1k": {
+    "h5ad": "data/1e44db10-b572-46cc-adae-dcc7acd44ca6.h5ad",
+    "chunk_cells": 20000,
+    "obs": {
+      "donor": "donor_id",
+      "age": "age",
+      "sex": "sex",
+      "cell_type": "cell_type"
+    }
+  }
+}

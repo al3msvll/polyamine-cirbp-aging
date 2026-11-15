@@ -1,99 +1,91 @@
-#The Polyamine CIRBP axis and Inflammaging
-Master Thesis: A Reproducible Whole-Blood Transcriptomic Analysis of a Curated Gene Panel 
-# The Polyamine–CIRBP Axis and Inflammaging
+# The Polyamine–CIRBP Axis and Inflammaging — reproducibility package
 
-**Master's Thesis (TFM) — Bioinformatics MSc, UNIR (with CNIO), 2025–2026**
-*A Reproducible Whole-Blood Transcriptomic Analysis of a Curated Gene Panel*
+Code for the TFM *The Polyamine–CIRBP Axis and Inflammaging: A Reproducible
+Whole-Blood Transcriptomic Analysis of a Curated Gene Panel* (UNIR / CNIO,
+2025–2026). One script regenerates every table and figure of the Results
+chapter from the public inputs below.
 
-Author: Alejandra Martín Sevilla · ORCID [0009-0001-0186-7680](https://orcid.org/0009-0001-0186-7680)
-Director: Leonardo Garma
+## Files
 
----
-
-## Overview
-
-`tfm_pipeline.py` implements Methods 3.2–3.9 of the thesis and regenerates the tables and
-figures of Results 4.1–4.13 (plus Annex F) from public data.
-
-It tests whether a curated **106-gene panel** tracks chronological age and inflammaging in
-human blood. The panel covers polyamine metabolism, eIF5A hypusination, the CIRBP axis,
-SASP, NF-κB targets and senescence markers.
-
-| Cohort | Tissue / assay | Age | Panel |
-|---|---|---|---|
-| **GTEx v11** | Whole blood, bulk RNA-seq (TPM) | Decade bins | 106 genes |
-| **GSE233321** | Blood, scRNA-seq → donor pseudobulk (≥18 y) | Exact years | 106 genes |
-| **OneK1K** | PBMC, scRNA-seq → donor pseudobulk | Exact years | 87 genes |
-
-### Analyses
-
-1. Per-gene age association (OLS, sex-adjusted, BH-FDR 0.05)
-2. Axis sub-scores (polyamine, hypusination, CIRBP module, SASP, PCAS)
-3. Age clocks — Elastic Net and Random Forest, 10-fold CV
-4. Random Forest hyperparameter sweep and grid search
-5. Feature importances, machinery–inflammation coupling, bootstrap CIs
-6. Cell-type deconvolution (NNLS, LM22) and immune composition vs age
-7. Cross-cohort concordance, ROC/PR age-group classification, stepwise models
-8. Dataset-bias diagnostics (Annex F)
-
----
-
-## Repository structure
-
-```
-.
-├── README.md
-├── LICENSE              # MIT
-├── tfm_pipeline.py      # full pipeline
-├── data/                # raw inputs (not tracked; download from sources below)
-└── results/             # generated output
-    ├── tables/
-    ├── figures/
-    └── run_summary.json
-```
-
-## Input data
-
-| File | Source |
+| File | Purpose |
 |---|---|
-| GTEx v11 whole-blood gene TPM (`.gct.gz`) + `SubjectPhenotypesDS.txt` | [GTEx Portal](https://gtexportal.org/home/downloads) |
-| GSE233321 single-cell object (`.h5ad`) | [GEO](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE233321) |
-| OneK1K single-cell object (`.h5ad`) | [CELLxGENE](https://cellxgene.cziscience.com/) |
-| LM22 signature matrix (optional) | [CIBERSORTx](https://cibersortx.stanford.edu/) |
+| `tfm_pipeline.py` | The analysis. Sections are numbered after Methods 3.2–3.9. |
+| `config.example.json` | Template with the input paths; copy to `config.json` and edit. |
+| `smoke_test.py` | Runs the whole pipeline on synthetic inputs in the real file formats. |
+| `requirements.txt` | Python dependencies. |
+| `TEST_RUN.md` | Output listing of the last full smoke test. |
+| `VERIFICATION.md` | Side-by-side comparison of the pipeline's output on the real data with the values in the manuscript. |
 
-Cohorts missing from the config are skipped, so GTEx can run on its own.
+## Inputs
 
-## Usage
+| Config key | Source | Notes |
+|---|---|---|
+| `gtex_gct` | `storage.googleapis.com/adult-gtex/bulk-gex/v11/rna-seq/tpms-by-tissue/gene_tpm_v11_whole_blood.gct.gz` | 74,628 genes × 803 samples |
+| `gtex_phenotypes` | `storage.googleapis.com/adult-gtex/annotations/v11/metadata-files/GTEx_Analysis_v11_Annotations_SubjectPhenotypesDS.txt` | decade midpoints are used as the age label |
+| `lm22` | CIBERSORT LM22 signature matrix (tab-separated, 547 genes × 22 types) | NNLS deconvolution of GTEx |
+| `gse233321.h5ad` | `ftp.ncbi.nlm.nih.gov/geo/series/GSE233nnn/GSE233321/suppl/GSE233321_all_PBMCs.h5ad` (12.5 GB) | obs columns `sample_id`, `Age_in_yrs`, `LS_L2`; raw counts in `raw/X` |
+| `onek1k.h5ad` | `datasets.cellxgene.cziscience.com/1e44db10-b572-46cc-adae-dcc7acd44ca6.h5ad` (4.4 GB) | obs columns `donor_id`, `age`, `sex`, `cell_type`; raw counts in `X` |
 
-```bash
-pip install numpy pandas scipy h5py statsmodels scikit-learn matplotlib xgboost
+`obs` entries name the donor, age, sex and cell-type columns of an h5ad
+(`config.example.json` holds the right ones for both files); leave them
+`null` to let the script detect common names. Raw counts are read from
+`raw/X` when present, otherwise from `X`. Large files are read in chunks of
+`chunk_cells` cells, so the 12 GB GSE233321 file does not need to fit in memory.
+Any cohort whose path is missing from the config is skipped.
+
+## Run
+
+```
+pip install -r requirements.txt
 python tfm_pipeline.py --config config.json --out results
 ```
 
-`config.json` holds the paths to the input files:
+Written for the versions stated in the manuscript (Python 3.10, scikit-learn 1.3)
+and tested on Python 3.13 with scikit-learn 1.9, pandas 3.0, numpy 2.5,
+xgboost 3.4. `TEST_RUN.md` lists the outputs of the last full test.
 
-```json
-{
-  "gtex_gct": "data/gtex/whole_blood_tpm.gct.gz",
-  "gtex_phenotypes": "data/gtex/SubjectPhenotypesDS.txt",
-  "lm22": "data/reference/LM22.txt",
-  "gse233321": { "h5ad": "data/gse233321/GSE233321.h5ad" },
-  "onek1k":    { "h5ad": "data/onek1k/onek1k.h5ad" }
-}
+`--skip-rf-sweep` skips the Random Forest hyper-parameter exploration (3.7a);
+`--skip-stepwise` skips the XGBoost / stacked-ensemble stage (4.13). Both are
+the slow parts.
+
+Test the installation without the data:
+
+```
+pip install anndata
+python smoke_test.py          # about one minute
+python smoke_test.py --full   # includes the RF sweep and XGBoost stage
 ```
 
-Optional flags: `--skip-rf-sweep`, `--skip-stepwise`.
+## Outputs
 
-## Reproducibility
+`results/tables/` and `results/figures/` are named after the manuscript:
+`table01_cohorts.csv` … `table20_GTEx_importances_all.csv`,
+`fig04_volcano_GTEx.png` … `fig19_OneK1K_stepwise.png`, `fig21_dataset_bias.png`.
+`run_summary.json` holds the scalar results quoted in the text (significant
+genes per cohort, PC1 loadings, best RF parameters, concordance statistics).
+Out-of-fold predictions for every clock are in `oof_*.csv`.
 
-Seed 42 · 10-fold CV · 2,000 bootstrap resamples · FDR α = 0.05.
-Table and figure numbers in `results/` match the manuscript.
+## Methods as implemented
 
-## Citation
+- Panel: Annex A (106 genes; genes listed in two groups take the last group,
+  which reproduces the labels of Annex C). OneK1K uses the panel without the
+  polyproline-target group (87 genes).
+- Normalisation: log1p-TPM (GTEx), log2-CPM of summed UMI counts (pseudobulk).
+  Duplicate symbols are collapsed to the row with the highest mean.
+- Age association: OLS `expression ~ age + sex` on z-scored variables,
+  Benjamini–Hochberg FDR across the panel; sex is dropped when absent.
+- PCAS: PC1 of the four standardised sub-scores, sign fixed once so that it
+  correlates positively with PPAS.
+- Clocks: ElasticNetCV (l1 ratio grid 0.1–0.9, 40 alphas, inner 5-fold) and
+  Random Forest (300 trees, `sqrt`), 10-fold KFold with seed 42, scaler fitted
+  on the training folds only, metrics per fold and pooled out-of-fold.
+- RF exploration: one-at-a-time sweep over six hyper-parameters, then a grid
+  over the influential ones, all scored on the same folds.
+- Interpretation: RF impurity importance and Elastic Net coefficients.
+- Coupling: machinery (12 genes) vs inflammation (18 genes) mean z-scores,
+  Pearson r and age-partial r via residualisation.
+- Robustness: 2,000-resample bootstrap CIs, performance by sex and age tertile,
+  GTEx–OneK1K concordance, ROC/PR under three binarisations, stepwise
+  Elastic Net → concordant panel → XGBoost → Ridge-stacked ensemble.
 
-> Martín Sevilla, A. (2026). *The Polyamine–CIRBP Axis and Inflammaging: A Reproducible
-> Whole-Blood Transcriptomic Analysis of a Curated Gene Panel*. Master's Thesis, UNIR.
-
-## License
-
-Code under the MIT License. Datasets remain under their original terms of use.
+Random seeds are fixed at 42 for every stochastic step.
